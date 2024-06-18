@@ -5,7 +5,8 @@ import os
 
 
 # Load the dataset
-data = pd.read_csv('data/modified_supermarkt_sales_plus.csv')
+#data = pd.read_csv('data/modified_supermarkt_sales_plus.csv')
+data = pd.read_csv('data/modified_supermarkt_sales_plus_two_years.csv')
 
 
 def create_pie_figure(data, group_by):

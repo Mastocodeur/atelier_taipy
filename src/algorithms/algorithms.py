@@ -59,8 +59,8 @@ def train_arima(train_data):
     model.fit(train_data['Total'])
     return model
 
-def forecast(model):
-    predictions = model.predict(n_periods=60)
+def forecast(model, n_periods):
+    predictions = model.predict(n_periods=n_periods)
     return np.array(predictions)
 
 def train_xgboost(train_data):    
@@ -71,9 +71,9 @@ def train_xgboost(train_data):
     model.fit(X,y)
     return model
 
-def forecast_xgboost(model, date):
+def forecast_xgboost(model, date, n_periods):
     dates = pd.to_datetime([date + dt.timedelta(days=i)
-                            for i in range(60)])
+                            for i in range(n_periods)])
     X = add_features(pd.DataFrame({"Date":dates}))
     X.drop('Date', axis=1, inplace=True)
     predictions = model.predict(X)

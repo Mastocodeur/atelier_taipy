@@ -21,7 +21,8 @@ pages = {
     "/": root_page,
     "Overview": Overview,
 	"Analysis": Analysis,
-	"Predictions": Predictions
+	"Predictions": Predictions,
+    "Visualisation": Visualisation
 }
 
 

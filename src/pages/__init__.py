@@ -13,3 +13,4 @@ from .root import root_page
 from .Overview.Overview import Overview, data
 from .Analysis.Analysis import Analysis
 from .Predictions.Predictions import Predictions, selected_holiday, selected_level, selected_scenario, dn_holiday, dn_result
+from .Visualisation.Visualisation import Visualisation

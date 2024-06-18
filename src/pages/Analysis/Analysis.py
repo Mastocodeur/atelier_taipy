@@ -21,9 +21,10 @@ import plotly.express as px
 import taipy.gui.builder as tgb
 
 # Assuming data is loaded from 'data/modified_supermarkt_sales_plus.csv'
-data = pd.read_csv('data/modified_supermarkt_sales_plus.csv')
+#data = pd.read_csv('data/modified_supermarkt_sales_plus.csv')
+data = pd.read_csv('data/modified_supermarkt_sales_plus_two_years.csv')
 
-data['Date'] = pd.to_datetime(data['Date'])
+data['Date'] = pd.to_datetime(data['Date'], format="%Y-%m-%d")
 data['Month_Year'] = data['Date'].dt.to_period('M').dt.to_timestamp()
     
 

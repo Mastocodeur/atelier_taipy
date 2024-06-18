@@ -1,0 +1,7 @@
+taipy
+numpy
+scikit-learn 
+setuptools
+pandas
+pmdarima
+plotly
