@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objs as go
 import taipy.gui.builder as tgb
 import os
-from algorithms import preprocess, train_arima, train_xgboost, concat, forecast_xgboost, forecast
+from algorithms import preprocess, train_arima, train_xgboost, concat, forecast_xgboost, forecast, train_linear_regression, forecast_linear_regression, forecast2
 
 #strptime
 
@@ -66,25 +66,46 @@ def plot_total_sales_distribution(data):
 
     return fig
 
-def plot_results_and_errors(initial_data, comparison_data, result):
+def plot_results_and_errors(comparison_data, result):
     # Tracer les résultats avec Plotly Express
-    fig = px.line(initial_data, x='Date', y='Total', title='Prévisions des ventes totales')
+    fig = px.line(comparison_data, x='Date', y='Total', title='Prévisions des ventes totales')
     fig.add_scatter(x=result['Date'], y=result['ARIMA'], mode='lines', name='Prévisions ARIMA', line=dict(color='red'))
     fig.add_scatter(x=result['Date'], y=result['Xgboost'], mode='lines', name='Prévisions XGBoost', line=dict(color='green'))
-
+    fig.add_scatter(x=result['Date'], y=result['Regression'], mode='lines', name='Prévisions Régression', line=dict(color='yellow'))
     # Comparer avec les données réelles
     comparison_data['Date'] = pd.to_datetime(comparison_data['Date'])
     comparison = pd.merge(result, comparison_data[['Date', 'Total']], on='Date', how='inner', suffixes=('', '_true'))
 
     # Calculer l'erreur de prédiction
-    comparison['error_arima'] = comparison['Total'] - comparison['ARIMA']
-    comparison['error_xgboost'] = comparison['Total'] - comparison['Xgboost']
+    comparison['error_arima'] = comparison['Total_true'] - comparison['ARIMA']
+    comparison['error_xgboost'] = comparison['Total_true'] - comparison['Xgboost']
+    comparison['error_regression'] = comparison['Total_true'] - comparison['Regression']
 
     # Tracer les erreurs de prédiction avec Plotly Express
     fig_error = px.line(comparison, x='Date', y='error_arima', title='Erreur de prédiction au fil du temps')
     fig_error.add_scatter(x=comparison['Date'], y=comparison['error_xgboost'], mode='lines', name='Erreur XGBoost', line=dict(color='green'))
+    fig_error.add_scatter(x=comparison['Date'], y=comparison['error_arima'], mode='lines', name='Erreur ARIMA', line=dict(color='red'))
+    fig_error.add_scatter(x=comparison['Date'], y=comparison['error_regression'], mode='lines', name='Erreur Regression', line=dict(color='yellow'))
+
+    # Agrégation par mois
+    comparison['Month'] = comparison['Date'].dt.to_period('M')
+    monthly_comparison = comparison.groupby('Month').mean().reset_index().astype(str)
     
-    return fig, fig_error
+    fig_monthly = px.line(monthly_comparison, x='Month', y='Total_true', title='Prévisions des ventes totales par mois')
+    fig_monthly.add_scatter(x=monthly_comparison['Month'], y=monthly_comparison['ARIMA'], mode='lines', name='Prévisions ARIMA', line=dict(color='red'))
+    fig_monthly.add_scatter(x=monthly_comparison['Month'], y=monthly_comparison['Xgboost'], mode='lines', name='Prévisions XGBoost', line=dict(color='green'))
+    fig_monthly.add_scatter(x=monthly_comparison['Month'], y=monthly_comparison['Regression'], mode='lines', name='Prévisions Régression', line=dict(color='yellow'))
+
+    # Agrégation par année
+    comparison['Year'] = comparison['Date'].dt.to_period('Y')
+    yearly_comparison = comparison.groupby('Year').mean().reset_index().astype(str)
+    
+    fig_yearly = px.line(yearly_comparison, x='Year', y='Total_true', title='Prévisions des ventes totales par année')
+    fig_yearly.add_scatter(x=yearly_comparison['Year'], y=yearly_comparison['ARIMA'], mode='lines', name='Prévisions ARIMA', line=dict(color='red'))
+    fig_yearly.add_scatter(x=yearly_comparison['Year'], y=yearly_comparison['Xgboost'], mode='lines', name='Prévisions XGBoost', line=dict(color='green'))
+    fig_yearly.add_scatter(x=yearly_comparison['Year'], y=yearly_comparison['Regression'], mode='lines', name='Prévisions Régression', line=dict(color='yellow'))
+
+    return fig, fig_error, fig_monthly, fig_yearly
 
 # Charger les données
 initial_data = pd.read_csv('data/modified_supermarkt_sales_plus.csv')
@@ -92,20 +113,20 @@ comparison_data = pd.read_csv('data/modified_supermarkt_sales_plus_four_years.cs
 
 # Préprocesser les données
 final_data, last_date = preprocess(initial_data, holiday=None, level=None)
-
+comparison_data, comparison_last_date = preprocess(comparison_data, holiday=None, level=None)
 # Entraîner les modèles
 arima_model = train_arima(final_data)
 xgboost_model = train_xgboost(final_data)
-
+regression_lin = train_linear_regression(final_data)
 # Faire des prévisions
 predictions_arima = forecast(arima_model, n_periods=3*365)
-predictions_xgboost = forecast_xgboost(xgboost_model, last_date, n_periods= 3*365)
-
+predictions_xgboost = forecast_xgboost(xgboost_model, comparison_last_date, n_periods= 3*365)
+predictions_regression = forecast_linear_regression(regression_lin, last_date, years = 3*365)
 # Concaténer les résultats
-result = concat(final_data, predictions_arima, predictions_xgboost)
+result = concat(final_data, predictions_arima, predictions_xgboost, predictions_regression)
 
 # Tracer les résultats et les erreurs de prédiction
-fig, fig_error = plot_results_and_errors(initial_data, comparison_data, result)
+fig, fig_error, fig_monthly, fig_yearly = plot_results_and_errors(comparison_data, result)
 
 
 customer_type = ["Normal", "Member"]
@@ -120,3 +141,5 @@ with tgb.Page() as Visualisation:
     tgb.chart(figure="{plot_total_sales_distribution(data)}")
     tgb.chart(figure="{fig}")
     tgb.chart(figure="{fig_error}")
+    tgb.chart(figure="{fig_monthly}")
+    tgb.chart(figure="{fig_yearly}")

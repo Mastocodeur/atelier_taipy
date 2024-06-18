@@ -20,6 +20,8 @@ from sklearn.ensemble import GradientBoostingRegressor
 import datetime as dt
 import numpy as np
 from pmdarima import auto_arima
+from sklearn.linear_model import LinearRegression
+
 
 
 def add_features(data):
@@ -63,6 +65,11 @@ def forecast(model, n_periods):
     predictions = model.predict(n_periods=n_periods)
     return np.array(predictions)
 
+def forecast2(model):
+    predictions = model.predict()
+    return np.array(predictions)
+
+
 def train_xgboost(train_data):    
     y = train_data['Total']
     X = train_data.drop(['Total','Date'], axis=1)
@@ -79,7 +86,40 @@ def forecast_xgboost(model, date, n_periods):
     predictions = model.predict(X)
     return predictions
 
-def concat(final_data, predictions_arima, predictions_xgboost):
+def train_linear_regression(train_data):
+    # Extract the target variable 'Total' and features
+    y = train_data['Total']
+    X = train_data.drop(['Total', 'Date'], axis=1)
+    # Create a Linear Regression model
+    model = LinearRegression()
+    # Fit the model to the data
+    model.fit(X, y)
+    return model
+
+
+def forecast_linear_regression(model, start_date, years):
+    # Generate dates for the next 'years' years, but ensure it stays within reasonable bounds
+    future_dates = []
+    current_date = start_date
+    for _ in range(years):  # roughly account for leap years
+        try:
+            current_date += pd.DateOffset(days=1)
+            future_dates.append(current_date)
+        except pd._libs.tslibs.np_datetime.OutOfBoundsDatetime:
+            break
+    
+    # Create a DataFrame for the future dates
+    future_data = pd.DataFrame({"Date": future_dates})
+    future_data = add_features(future_data)
+    
+    # Drop the 'Date' column as it is not used for prediction
+    X_future = future_data.drop('Date', axis=1)
+    
+    # Predict future values
+    predictions = model.predict(X_future)
+    return predictions
+
+def concat(final_data, predictions_arima, predictions_xgboost, predictions_regression):
     date = final_data['Date'].max()
 
     def  _convert_predictions(final_data, predictions, date, label='Predictions'):
@@ -93,4 +133,13 @@ def concat(final_data, predictions_arima, predictions_xgboost):
 
     result_arima = _convert_predictions(final_data, predictions_arima, date, label='ARIMA')
     result_xgboost = _convert_predictions(final_data, predictions_xgboost, date, label='Xgboost')
-    return result_arima.merge(result_xgboost, on=["Date", 'Total'], how="outer").sort_values(by='Date')
+    result_regression = _convert_predictions(final_data, predictions_regression, date, label='Regression')
+    
+    # Merge all results on 'Date' and 'Total', keeping all records
+    result = result_arima.merge(result_xgboost, on=['Date', 'Total'], how='outer')
+    result = result.merge(result_regression, on=['Date', 'Total'], how='outer')
+    
+    # Sort the result by 'Date'
+    result = result.sort_values(by='Date')
+    
+    return result
