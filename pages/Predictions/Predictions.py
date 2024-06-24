@@ -51,4 +51,33 @@ def on_change(state, var_name, var_value):
         state.dn_result = state.selected_scenario.result
 
 
+
+
+selected_data_node = None
+selected_scenario = None
+selected_holiday = False
+selected_level = 100
+
+def on_submission_change(state, submitable, details):
+    if details['submission_status'] == 'COMPLETED':
+        notify(state, "success", "Predictions ready!")
+        print("Predictions ready!")
+    elif details['submission_status'] == 'FAILED':
+        notify(state, "error", "Submission failed!")
+        print("Submission failed!")
+    else:
+        notify(state, "info", "In progress...")
+        print("In progress...")
+
+
+def on_change_params(state): 
+    state.selected_scenario.level.write(state.selected_level/100)
+    state.selected_scenario.holiday.write(state.selected_holiday)
+    notify(state, "success", "Scenario parameters changed!")
+
+def on_change(state, var_name, var_value):
+    if var_name == 'selected_scenario' and var_value:
+        state.selected_level = state.selected_scenario.level.read()*100
+        state.selected_holiday = state.selected_scenario.holiday.read()
+
 Predictions = Markdown("pages/Predictions/Predictions.md")
